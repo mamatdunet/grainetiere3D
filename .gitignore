@@ -1,0 +1,11 @@
+# Python
+.venv/
+__pycache__/
+
+# Point clouds and scans live on Drive and Vercel Blob, only the inventory is kept here
+data/*
+!data/inventory/
+
+# Local tool settings
+.claude/
+.DS_Store
