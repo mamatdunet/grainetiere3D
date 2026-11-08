@@ -10,7 +10,7 @@ Le dernier déploiement date du 5 novembre 2026 à 22 h 56, et le code de ce dé
 
 | Sujet | État |
 | --- | --- |
-| Site réel, après mot de passe | Les déploiements ne sont vérifiés que par le code 401 de la page d'accès |
+| `/admin` réel, après mot de passe | Vérifié seulement par le code 401 de la page d'accès |
 | Téléphone réel | Testé en émulation seulement |
 | Images par seconde réelles | Le panneau de test est limité par le navigateur quand il est masqué ; le rythme sur la machine de l'utilisateur n'est pas confirmé |
 | Saccades dans les travellings | Correctif en place, non confirmé. Une capture montrait 11,6 M de points à 60 i/s, signe que l'allègement automatique s'était déclenché |
@@ -44,7 +44,8 @@ Rien de ceci n'est un avis juridique. Ce sont des points à régler par les pers
 
 ## Limites de sécurité
 
-- Le mot de passe protège le site, pas les fichiers de points.
+- La visite est publique depuis le 9 novembre 2026. Le mot de passe ne protège que `/admin`, la vue qui montre les chambres des moines.
+- Il ne protège pas les fichiers de points : ceux des chambres restent lisibles par qui connaît leur adresse, et le manifeste public les liste.
 - Le code d'accès n'a pas de limite de tentatives.
 - Le mot de passe est transmis en clair dans le POST, protégé par HTTPS, et comparé à sa valeur en mémoire.
 - Le cookie reste valable tant que le mot de passe ne change pas : on ne peut pas révoquer un seul visiteur.

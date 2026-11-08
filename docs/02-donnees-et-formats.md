@@ -183,7 +183,7 @@ v = −x sin(axis) + y cos(axis)
 
 ### `music/`
 
-Six morceaux et une ambiance en MP3 (26 Mo). Ils sont servis par le site, donc derrière le mot de passe.
+Six morceaux et une ambiance en MP3 (26 Mo). Ils sont servis par le site, public depuis le 9 novembre 2026.
 
 ## Dans le dépôt : `data/inventory/`
 

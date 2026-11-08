@@ -1,5 +1,6 @@
-// Password page in front of the whole site (the password lives in the SITE_PASSWORD env var).
-// It protects the viewer only: the point files in Blob stay readable by whoever has their address.
+// Password page in front of /admin, the only view that shows the monks' rooms (the password lives in the
+// SITE_PASSWORD env var). The rest of the site is public. It protects the viewer only: the point files in
+// Blob stay readable by whoever has their address, the rooms' files included.
 const COOKIE = 'grainetiere_acces';
 const MONTH = 30 * 24 * 3600;
 
@@ -46,7 +47,7 @@ function page(status, message) {
   });
 }
 
-export const config = { matcher: '/:path*' };
+export const config = { matcher: ['/admin', '/admin/:path*'] };
 
 export default async function middleware(request) {
   const password = process.env.SITE_PASSWORD;
