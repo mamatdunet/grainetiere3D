@@ -459,3 +459,22 @@ kbd {
   .story { top: 8px; left: 8px; max-width: calc(100vw - 16px); max-height: 48vh; }
   .help { bottom: 176px; margin-right: 16px; }
 }
+
+/* Hand cleaning (?nettoyage=1) */
+.cleanup { top: 16px; left: 16px; right: auto; width: 250px; display: grid; gap: 8px; z-index: 5; font-size: 13px; }
+.cleanup h2 { margin: 0; font-size: 15px; }
+.cleanup p { margin: 0; color: var(--muted); }
+.cleanup label { display: grid; gap: 4px; }
+.cleanup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cleanup output { color: var(--muted); font-size: 12px; }
+.cleanup-ring { position: fixed; top: 0; left: 0; border: 1.5px solid #ff3b30; border-radius: 50%; pointer-events: none; z-index: 6; }
+.cleanup-ring[hidden] { display: none; }
+.cleanup-ring.restoring { border-color: #35d07f; }
+.cleanup-ring.guarded { border: 2px dashed #ff9f0a; }
+.cleanup-ring::after { content: attr(data-label); position: absolute; left: 100%; top: 50%; margin: -9px 0 0 6px; padding: 0 5px; white-space: nowrap; font-size: 12px; line-height: 18px; color: #fff; background: rgba(0, 0, 0, .65); border-radius: 4px; }
+.cleanup-ring[data-label=""]::after { display: none; }
+.cleanup-tools, #cleanup-login { display: grid; gap: 8px; }
+.cleanup-tools[hidden], #cleanup-login[hidden] { display: none; }
+.cleanup input[type="password"] { min-height: 32px; padding: 4px 8px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 6px; }
+#vr-open[hidden], .vr-choice[hidden] { display: none; }
+.vr-choice { display: flex; gap: 8px; align-items: center; }

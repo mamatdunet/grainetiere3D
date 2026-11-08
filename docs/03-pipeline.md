@@ -254,6 +254,14 @@ Le calcul prend environ 2 minutes, sur une grille de 10 cm (`VOXEL`).
 
 La grille du fichier couvre tous les points, pour qu'un point lointain ne puisse pas tomber sur un numéro de cellule masquée. Le résultat et ses limites sont décrits dans [les chantiers](06-limites-et-droits.md#masquer-les-silhouettes-de-léquipe-de-relevé).
 
+### Morceaux pour le nettoyage à la main : `pieces_mask.py`
+
+```bash
+python pipeline/pieces_mask.py cache app/src/people-mask.bin app/src/pieces-mask.bin app/src/air-mask.bin app/src/speck-mask.bin
+```
+
+Le script reprend la séparation du bâti de `people_mask.py`, garde tous les morceaux jusqu'à 3 000 cases (`MAX_CELLS`) et note ceux qui n'ont rien autour d'eux (`LOOSE_REACH`). Il lit la grille dans `people-mask.bin` pour que les numéros de cases restent les mêmes. Le fichier ne sert que sur `?nettoyage=1` : un clic retire un morceau entier, un curseur retire d'un coup les morceaux isolés, et le pinceau ne touche plus au bâti sans `Alt`.
+
 ## Ordre de reconstruction
 
 ```mermaid

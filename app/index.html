@@ -31,6 +31,7 @@
           </svg>
         </button>
         <button id="music-open" class="icon" aria-label="Choisir la musique" title="Choisir la musique">♪</button>
+        <button id="vr-open" title="Passer dans le casque de réalité virtuelle" hidden>Entrer dans le casque</button>
         <button id="guide-open" class="guide-open">? Aide</button>
       </div>
       <div class="stations-row" id="stations-row">
@@ -82,7 +83,7 @@
           <button id="sky-now" aria-pressed="true" title="Suivre l'heure réelle à l'abbaye">Heure réelle</button>
         </div>
       </div>
-      <button id="hide-traces" aria-pressed="false" title="Le relevé garde la trace de l'équipe qui l'a réalisé. La détection est automatique : une partie de ces traces reste visible.">Masquer silhouettes et trépieds</button>
+      <button id="hide-traces" aria-pressed="true" title="Le relevé garde la trace de l'équipe qui l'a réalisé. La détection est automatique : une partie de ces traces reste visible.">Masquer silhouettes et trépieds</button>
       <details id="fine-settings" open>
       <summary>Réglages fins</summary>
       <div class="fine">
@@ -136,6 +137,7 @@
         </div>
         <div class="welcome-step" id="step-music" hidden>
           <p>Souhaitez-vous l'accompagnement musical ? Il se coupe ou se change à tout moment.</p>
+          <label class="vr-choice" id="vr-choice" hidden><input id="vr-wanted" type="checkbox" checked /> Visiter dans le casque de réalité virtuelle</label>
           <button id="enter-music" class="primary">♪ Avec la musique</button>
           <button id="enter-silent">Sans musique</button>
         </div>

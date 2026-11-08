@@ -8,7 +8,8 @@ import mapImageUrl from './minimap.png?url';
 
 const DEFAULT_DATA = 'https://earmm4k9vwqulmnw.public.blob.vercel-storage.com/abbaye';
 const baseUrl = new URLSearchParams(location.search).get('data') || DEFAULT_DATA;
-const isTouch = matchMedia('(pointer: coarse)').matches;
+// A headset's browser has no more power to spare than a phone, whichever pointer it reports.
+const isTouch = matchMedia('(pointer: coarse)').matches || /OculusBrowser|Quest/.test(navigator.userAgent);
 // URL options: detail=<millions of points>, precharger=1 (download the tour first), lieux=<lieu,lieu>.
 // Phones and tablets ignore the first two: they keep following their own frame rate, and such a
 // download could be too much for them. Past 16 million points, a preloaded tour gains next to nothing.
@@ -33,6 +34,25 @@ try {
 } catch {
   showError("Votre navigateur ne permet pas d'afficher cette vue 3D (WebGL indisponible).");
   throw new Error('WebGL unavailable');
+}
+// The points can arrive and still draw nothing: this too must not look like an endless wait.
+const GRAPHICS_TROUBLE = "La carte graphique n'arrive pas à afficher les points. Mettez à jour son pilote ou essayez un autre navigateur.";
+renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
+  console.error('shader', gl.getProgramInfoLog(program), gl.getShaderInfoLog(vertexShader), gl.getShaderInfoLog(fragmentShader));
+  showError(GRAPHICS_TROUBLE);
+};
+canvas.addEventListener('webglcontextlost', () => showError(GRAPHICS_TROUBLE));
+canvas.addEventListener('webglcontextrestored', () => { document.getElementById('error').hidden = true; });
+
+let dataTrouble = false;
+function showDataTrouble(error) {
+  if (Boolean(error) === dataTrouble) return;
+  dataTrouble = Boolean(error);
+  if (error) {
+    showError(`Les données de l'abbaye n'arrivent pas (${error.message}). La connexion à vercel-storage.com est peut-être bloquée par un antivirus, une extension du navigateur ou le réseau. Le chargement continue d'essayer.`);
+  } else {
+    document.getElementById('error').hidden = true;
+  }
 }
 renderer.autoClear = false;
 let pixelRatio = Math.min(devicePixelRatio, isTouch ? 1.25 : 1.5);
@@ -192,6 +212,23 @@ const fillPass = new THREE.ShaderMaterial({
   `,
 });
 
+const SKY_SHADER = /* glsl */ `
+  uniform vec3 uSun, uHorizon, uZenith, uGlow;
+  uniform float uDisc, uNight;
+  vec3 sky(vec3 world) {
+    float up = clamp(world.z * 1.4 + 0.15, 0.0, 1.0);
+    return mix(uHorizon, uZenith, pow(up, 0.7));
+  }
+  vec3 openSky(vec3 world) {
+    float toSun = max(dot(world, uSun), 0.0);
+    vec3 color = sky(world) + uGlow * (pow(toSun, 5.0) * 0.45 + pow(toSun, 60.0) * 0.5);
+    float above = smoothstep(-0.01, 0.02, world.z);
+    color += above * uDisc * smoothstep(0.9993, 0.9997, toSun) * vec3(1.0, 0.97, 0.88);
+    float star = fract(sin(dot(floor(world * 260.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+    return color + above * uNight * step(0.9972, star) * star * vec3(0.8, 0.85, 1.0);
+  }
+`;
+
 const shadePass = new THREE.ShaderMaterial({
   ...passOptions,
   uniforms: {
@@ -213,9 +250,10 @@ const shadePass = new THREE.ShaderMaterial({
     uniform sampler2D tFill;
     uniform vec2 uTexel, uTan;
     uniform mat3 uViewToWorld;
-    uniform vec3 uSun, uHorizon, uZenith, uGlow, uAmbient, uKey;
-    uniform float uStrength, uDisc, uNight;
+    uniform vec3 uAmbient, uKey;
+    uniform float uStrength;
     varying vec2 vUv;
+    ${SKY_SHADER}
     vec3 viewPosition(vec2 uv, float z) { return vec3((uv * 2.0 - 1.0) * uTan * z, -z); }
     // On each side, follow the neighbour lying on the same surface.
     vec3 slope(vec2 step, vec3 center) {
@@ -224,18 +262,6 @@ const shadePass = new THREE.ShaderMaterial({
       if (useA) return viewPosition(vUv + step, a) - center;
       if (b > 0.0) return center - viewPosition(vUv - step, b);
       return vec3(0.0);
-    }
-    vec3 sky(vec3 world) {
-      float up = clamp(world.z * 1.4 + 0.15, 0.0, 1.0);
-      return mix(uHorizon, uZenith, pow(up, 0.7));
-    }
-    vec3 openSky(vec3 world) {
-      float toSun = max(dot(world, uSun), 0.0);
-      vec3 color = sky(world) + uGlow * (pow(toSun, 5.0) * 0.45 + pow(toSun, 60.0) * 0.5);
-      float above = smoothstep(-0.01, 0.02, world.z);
-      color += above * uDisc * smoothstep(0.9993, 0.9997, toSun) * vec3(1.0, 0.97, 0.88);
-      float star = fract(sin(dot(floor(world * 260.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-      return color + above * uNight * step(0.9972, star) * star * vec3(0.8, 0.85, 1.0);
     }
     void main() {
       vec4 here = texture2D(tFill, vUv);
@@ -320,6 +346,8 @@ const keys = new Set();
 let speed = 1.6;
 let flight = null;
 let dirty = true;
+let cleanup = null;
+let headset = null;
 let stale = true;
 let cloud = null;
 
@@ -342,6 +370,7 @@ function applyLook() {
 }
 
 function resize() {
+  if (headset?.active) return;
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
   target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
@@ -385,6 +414,7 @@ addEventListener('blur', () => keys.clear());
 const pointers = new Map();
 let pinch = null;
 canvas.addEventListener('pointerdown', (event) => {
+  if (cleanup?.pointerDown(event)) return;
   canvas.setPointerCapture(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   pinch = null;
@@ -393,14 +423,17 @@ canvas.addEventListener('pointerdown', (event) => {
   document.getElementById('help').hidden = true;
 });
 canvas.addEventListener('pointermove', (event) => {
+  if (cleanup?.pointerMove(event)) return;
   const last = pointers.get(event.pointerId);
   if (!last) return;
   const dx = event.clientX - last.x, dy = event.clientY - last.y;
   last.x = event.clientX;
   last.y = event.clientY;
   if (pointers.size === 1) {
-    look.yaw += dx * 0.0035;
-    look.pitch = THREE.MathUtils.clamp(look.pitch + dy * 0.0035, -1.55, 1.55);
+    // Zoomed in, the same gesture covers less of the scene.
+    const turn = 0.0035 * Math.min(camera.fov / NORMAL_FOV, 1);
+    look.yaw += dx * turn;
+    look.pitch = THREE.MathUtils.clamp(look.pitch + dy * turn, -1.55, 1.55);
     applyLook();
   } else if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
@@ -419,14 +452,29 @@ canvas.addEventListener('pointermove', (event) => {
   }
 });
 const release = (event) => {
+  if (cleanup?.pointerUp()) return;
   pointers.delete(event.pointerId);
   pinch = null;
 };
 canvas.addEventListener('pointerup', release);
 canvas.addEventListener('pointercancel', release);
+// Zoom: the field of view narrows, so that the visitor stays where they are and goes through no wall. A pinch on
+// a trackpad reaches the page as a wheel with Ctrl. The plain wheel sets the speed, except while cleaning.
+const ZOOM_FOV = { min: 12, max: 100 };
+function zoom(amount) {
+  stopTour();
+  flight = null;
+  camera.fov = fovGoal = THREE.MathUtils.clamp(camera.fov * Math.exp(amount), ZOOM_FOV.min, ZOOM_FOV.max);
+  camera.updateProjectionMatrix();
+  dirty = true;
+}
 canvas.addEventListener('wheel', (event) => {
   event.preventDefault();
-  setSpeed(speed * Math.exp(-event.deltaY * 0.0012));
+  // With Shift held, some systems turn the wheel sideways.
+  const delta = event.deltaY || event.deltaX;
+  if (event.ctrlKey) zoom(delta * 0.01);
+  else if (cleanup) zoom(delta * 0.0015);
+  else setSpeed(speed * Math.exp(-delta * 0.0012));
 }, { passive: false });
 
 function goTo(position, duration = 1.2, view = null) {
@@ -1239,7 +1287,7 @@ let tourShownAt = 0;
 function stepTour(dt) {
   tour.clock += dt;
   if (tour.phase === 'next') {
-    if (cloud.store) {
+    if (cloud.store && !headset?.active) {
       holdLastPicture();
       arriveAtNextPlace();
     } else {
@@ -1661,7 +1709,7 @@ function refreshOcclusion() {
   };
   renderer.readRenderTargetPixelsAsync(reduceB, 0, 0, width, height, pixels).then(() => {
     occlusionBusy = false;
-    if (!improved || !cloud) return;
+    if (!improved || !cloud || headset?.active) return;
     seen.distance = new Float32Array(width * height);
     let moved = 0;
     const before = cloud.occlusion?.distance;
@@ -1683,7 +1731,7 @@ let lastFps = previous;
 let fps = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  if (skipRefresh(now)) return;
+  if (headset?.active || skipRefresh(now)) return;
   const dt = Math.min((now - previous) / 1000, 0.1);
   previous = now;
   step(dt);
@@ -1702,6 +1750,7 @@ function frame(now) {
   if (!dirty) return;
   dirty = false;
   draw();
+  cleanup?.drawOver();
   frames += 1;
   watchPace(now);
   adaptBudget(now);
@@ -1784,6 +1833,7 @@ function setupMusic() {
     if (withMusic) music.play();
     canvas.focus();
     onEnter();
+    if (!document.getElementById('vr-choice').hidden && document.getElementById('vr-wanted').checked) enterHeadset();
     if (guided) ready.then(() => { if (cloud && !tour) startTour(); });
     callForGuide();
   };
@@ -1796,7 +1846,8 @@ function setupMusic() {
 const GUIDE_STEPS = [
   { target: '#tour', title: 'La visite guidée', text: 'Lance un parcours commenté de toute l’abbaye, et le met en pause à tout moment. Un clic dans l’image ou un déplacement vous rend la main ; ce bouton vous ramène ensuite à l’instant exact où vous en étiez.' },
   { target: '#tour-progress', title: 'L’avancement de la visite', text: 'Comme pour une vidéo, glissez le curseur jaune pour aller à n’importe quel moment. De chaque côté, les boutons mènent au lieu précédent et au lieu suivant.' },
-  { target: '.speed', title: 'La vitesse de défilement', text: 'Règle l’allure de la visite guidée ou de vos déplacements. La molette de la souris et les touches + et − font de même.' },
+  { target: '.speed', title: 'La vitesse de défilement', text: 'Règle l’allure de la visite guidée ou de vos déplacements. La molette de la souris et les touches + et − font de même. Sur un pavé tactile, pincer zoome dans l’image.' },
+  { target: '#vr-open', title: 'Le casque de réalité virtuelle', text: 'Passe la visite dans le casque et la commande aux manettes. Une aide y rappelle chaque bouton.' },
   { target: '#story-toggle', title: 'Les explications', text: 'Affiche un court texte sur le lieu où vous êtes, avec une version détaillée à la demande. La visite guidée attend pendant la lecture du texte détaillé.' },
   { target: '#mute', title: 'La musique', text: 'Ce bouton la lance ou la coupe, le bouton voisin permet de choisir un morceau et le volume.' },
   { target: '.minimap', title: 'Le plan', text: 'Le point orange indique où vous êtes, et le triangle dans quelle direction vous regardez. Pendant la visite guidée, le parcours s’y dessine.' },
@@ -1889,11 +1940,70 @@ function callForGuide() {
   if (!seen) document.getElementById('guide-open').classList.add('call');
 }
 
+// In a headset's own browser, or a computer with one connected: the visit can go on in there (see vr.js).
+async function setupHeadset() {
+  if (!await navigator.xr?.isSessionSupported('immersive-vr').catch(() => false)) return;
+  const { Headset } = await import('./vr.js');
+  headset = new Headset({
+    renderer,
+    scene,
+    camera,
+    look,
+    applyLook,
+    cloud,
+    step,
+    watchPlace,
+    toggleTour,
+    jumpTour,
+    stopTour,
+    music,
+    fadeLayer,
+    skyShader: SKY_SHADER,
+    skyUniforms: shadePass.uniforms,
+    settleTime: SETTLE_TIME,
+    baseUrl,
+    tourPlan,
+    get tour() { return tour; },
+    get speed() { return speed; },
+    get placeText() { return currentPlace && placeTexts.places[currentPlace]; },
+    leftHeadset() {
+      if (improved) cloud.occlusion = null;
+      flight = null;
+      resize();
+      stale = dirty = true;
+    },
+  });
+  document.getElementById('vr-open').hidden = false;
+  document.getElementById('vr-choice').hidden = false;
+  document.getElementById('vr-open').addEventListener('click', enterHeadset);
+}
+
+function enterHeadset() {
+  if (!headset || headset.active) return;
+  flight = null;
+  // High above the abbey is no place to find oneself in a headset: start on the ground, where the tour does.
+  if (!tour && camera.position.z > OVERVIEW_HEIGHT) {
+    const first = tourPlan.places[0];
+    const [x, y, z, yaw, pitch] = tourPlan.chains[first.chain][first.from];
+    camera.position.set(x, y, z);
+    look.yaw = yaw;
+    look.pitch = pitch;
+    applyLook();
+    setSpeed(WALKING_SPEED);
+  }
+  cloud.occlusion = null;
+  headset.enter().catch((error) => {
+    console.error(error);
+    showError("Le casque n'a pas pu démarrer. Réessayez depuis le navigateur du casque.");
+  });
+}
+
 async function start() {
   const abbey = await loadAbbey(baseUrl);
   cloud = new PointCloud(abbey, baseUrl, {
     pointBudget: chosenDetail ? chosenDetail * 1e6 : isTouch ? TOUCH_BUDGET.start : 16_000_000,
     onChange: () => { dirty = true; },
+    onTrouble: showDataTrouble,
   });
   scene.add(cloud.group);
 
@@ -1903,7 +2013,14 @@ async function start() {
   abbeyZones = abbey.zones;
   buildPlaceMarks(abbey);
   buildUi(abbey, startZone, overview);
-  if (startZone) {
+  // A view shared from the cleaning tool (see cleanup.js): position, direction and zoom.
+  const shared = params.get('vue')?.split(',').map(Number);
+  if (shared?.length === 6 && shared.every(Number.isFinite)) {
+    camera.position.set(shared[0], shared[1], shared[2]);
+    look.yaw = shared[3];
+    look.pitch = shared[4];
+    camera.fov = fovGoal = THREE.MathUtils.clamp(shared[5], ZOOM_FOV.min, ZOOM_FOV.max);
+  } else if (startZone) {
     const startStation = startZone.stations.find((s) => s.name.endsWith(params.get('station'))) ?? startZone.stations[0];
     camera.position.set(...startStation.position);
     const others = startZone.stations.reduce((sum, s) => sum.add(new THREE.Vector3(...s.position)), new THREE.Vector3())
@@ -1919,6 +2036,13 @@ async function start() {
   }
   resize();
   applyLook();
+  if (options.has('nettoyage') && !isTouch && abbey.peopleMask) {
+    const { setupCleanup } = await import('./cleanup.js');
+    cleanup = setupCleanup({ canvas, camera, renderer, cloud, look });
+    document.getElementById('enter-free').click();
+    document.getElementById('enter-silent').click();
+  }
+  await setupHeadset();
   if (preloadWanted) await setupPreload();
   else if (options.has('precharger')) {
     document.getElementById('prepare').hidden = false;

@@ -3,7 +3,7 @@ import airMaskUrl from './air-mask.bin?url';
 import speckMaskUrl from './speck-mask.bin?url';
 import peopleMaskUrl from './people-mask.bin?url';
 
-async function gunzipIfNeeded(buffer) {
+export async function gunzipIfNeeded(buffer) {
   const bytes = new Uint8Array(buffer);
   // Some hosts already decode .gz files through Content-Encoding.
   if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return buffer;
@@ -22,8 +22,9 @@ export async function loadAbbey(baseUrl) {
   const response = await fetch(`${baseUrl}/manifest.json`, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`manifest: HTTP ${response.status}`);
   const manifest = await response.json();
-  const [zones, peopleMask, ...masks] = await Promise.all([
+  const [zones, cleaning, peopleMask, ...masks] = await Promise.all([
     Promise.all(manifest.zones.map((zone) => fetchZone(baseUrl, zone))),
+    loadCleaning(baseUrl),
     loadMask(peopleMaskUrl),
     loadMask(airMaskUrl),
     loadMask(speckMaskUrl),
@@ -31,7 +32,23 @@ export async function loadAbbey(baseUrl) {
   manifest.zones = zones;
   manifest.masks = masks.filter(Boolean);
   manifest.peopleMask = peopleMask;
+  manifest.cleaning = cleaning;
+  if (peopleMask) {
+    for (const cell of cleaning.added) peopleMask.cells.add(cell);
+    for (const cell of cleaning.restored) peopleMask.cells.delete(cell);
+  }
   return manifest;
+}
+
+// What the administrator cleaned by hand (see cleanup.js). Small, and always asked for afresh.
+async function loadCleaning(baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl}/nettoyage.json?v=${Date.now()}`);
+    if (response.ok) return await response.json();
+  } catch (error) {
+    console.warn('nettoyage', error);
+  }
+  return { added: [], restored: [] };
 }
 
 // Cells of space holding only what floats in the air, or specks just off a surface (see pipeline/air_mask.py
@@ -99,11 +116,15 @@ function moveTracesLast(positions, tones, n, node, mask) {
   return end;
 }
 
+const NOTHING_MARKED = 1e9;
+
 const VERTEX = /* glsl */ `
-  uniform float uScale, uSize, uSpacing, uMinSize, uMaxSize, uMinTone;
+  uniform float uScale, uSize, uSpacing, uMinSize, uMaxSize, uMinTone, uMarkFrom;
+  uniform vec3 uHiddenLow, uHiddenHigh;
   attribute float tone;
   varying float vTone;
   varying float vHeight;
+  varying float vMarked;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
     vec4 view = viewMatrix * world;
@@ -111,8 +132,12 @@ const VERTEX = /* glsl */ `
     gl_PointSize = uSize * clamp(1.5 * uSpacing * uScale / max(-view.z, 0.01), uMinSize, uMaxSize);
     // Laser echoes on edges come back almost black: send them off screen.
     if (tone < uMinTone) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    #ifdef HIDDEN_BOX
+    if (all(greaterThan(world.xyz, uHiddenLow)) && all(lessThan(world.xyz, uHiddenHigh))) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    #endif
     vTone = tone;
     vHeight = world.z;
+    vMarked = float(gl_VertexID) >= uMarkFrom ? 1.0 : 0.0;
   }
 `;
 
@@ -121,24 +146,25 @@ const FRAGMENT = /* glsl */ `
   uniform vec2 uHeightRange;
   varying float vTone;
   varying float vHeight;
+  varying float vMarked;
   vec3 ramp(float t) {
     vec3 a = vec3(0.13, 0.20, 0.36), b = vec3(0.30, 0.58, 0.55), c = vec3(0.93, 0.80, 0.50);
     return t < 0.5 ? mix(a, b, t * 2.0) : mix(b, c, t * 2.0 - 1.0);
   }
   void main() {
     vec2 p = gl_PointCoord - 0.5;
+    #ifndef SQUARE_POINTS
     if (dot(p, p) > 0.25) discard;
+    #endif
     vec3 base = uMode == 0
       ? (0.1 + 0.9 * pow(vTone, 1.25)) * vec3(1.0, 0.965, 0.9)
       : ramp(clamp((vHeight - uHeightRange.x) / (uHeightRange.y - uHeightRange.x), 0.0, 1.0))
         * (0.55 + 0.65 * vTone);
-    gl_FragColor = vec4(base, 1.0);
+    gl_FragColor = vec4(vMarked > 0.5 ? vec3(1.0, 0.1, 0.1) : base, 1.0);
   }
 `;
 
 const MIN_OCCLUSION_DEPTH = 5;
-// How many new points may reach the graphics card at each selection: more would show as a jolt in the motion.
-const MAX_NEW_POINTS = 1_500_000;
 
 // Birds and laser noise show up as points with nothing around them. Each node is cut into a coarse
 // grid (a cell is 4 point spacings wide): a point whose cell and neighbouring cells hold at most
@@ -254,11 +280,22 @@ class BinaryHeap {
   }
 }
 
+// A failed node is asked for again a little later. This many failures in a row, with no success between
+// them, means the data does not get through at all (filtering, network), which the visitor should be told.
+const RETRY_DELAY = 1000;
+const TROUBLE_AFTER = 48;
+
 export class PointCloud {
-  constructor(abbey, baseUrl, { pointBudget, concurrency = 24, onChange }) {
+  constructor(abbey, baseUrl, { pointBudget, concurrency = 24, onChange, onTrouble }) {
     this.abbey = abbey;
+    this.onTrouble = onTrouble;
+    this.failures = 0;
     this.baseUrl = baseUrl;
     this.pointBudget = pointBudget;
+    // How many new points may reach the graphics card at each selection: more would show as a jolt in the motion.
+    this.maxNewPoints = 1_500_000;
+    // Each node drawn has a cost of its own, however small: a slower device can pass over the smallest ones.
+    this.minNodePoints = 1;
     this.concurrency = concurrency;
     this.onChange = onChange;
     this.group = new THREE.Group();
@@ -275,7 +312,10 @@ export class PointCloud {
     this.queue = [];
     this.warmQueue = [];
     this.received = [];
-    this.tracesHidden = false;
+    this.tracesHidden = true;
+    this.tracesMarked = false;
+    // An area shown by other means (see vr.js): nodes wholly inside it are not even selected.
+    this.hiddenBox = null;
 
     const zs = abbey.zones.flatMap((zone) => zone.stations.map((s) => s.position[2]));
     const floor = Math.min(...zs) - 2;
@@ -288,6 +328,9 @@ export class PointCloud {
         uSpacing: { value: 1 },
         uMinSize: { value: 2.8 },
         uMinTone: { value: 0 },
+        uMarkFrom: { value: NOTHING_MARKED },
+        uHiddenLow: { value: new THREE.Vector3() },
+        uHiddenHigh: { value: new THREE.Vector3() },
         uMaxSize: { value: 14 },
         uMode: { value: 0 },
         uHeightRange: { value: new THREE.Vector2(floor, floor + 12) },
@@ -455,9 +498,9 @@ export class PointCloud {
     while (heap.size) {
       const [, node] = heap.pop();
       if (!this.frustum.intersectsBox(node.box)) continue;
-      if (this.isOccluded(node)) continue;
+      if (this.isOccluded(node) || this.hiddenBox?.containsBox(node.box)) continue;
       if (pixelSpacing(node) < 1.2) continue;
-      if (!node.count) {
+      if (node.count < this.minNodePoints) {
         for (const child of node.children) heap.push(priority(child), child);
         continue;
       }
@@ -465,7 +508,7 @@ export class PointCloud {
       total += node.count;
       if (node.mesh) {
         if (!node.shown) {
-          if (fresh + node.count > MAX_NEW_POINTS && fresh) {
+          if (fresh + node.count > this.maxNewPoints && fresh) {
             held += 1;
             continue;
           }
@@ -507,8 +550,13 @@ export class PointCloud {
     this.loading += 1;
     try {
       this.received.push([node, await gunzipIfNeeded(await this.readNode(node))]);
+      this.failures = 0;
+      this.onTrouble?.(null);
     } catch (error) {
       console.warn(`node ${node.zone}/${node.key}`, error);
+      this.failures += 1;
+      if (this.failures >= TROUBLE_AFTER) this.onTrouble?.(error);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
       node.state = 'idle';
       this.loading -= 1;
       this.pump();
@@ -518,6 +566,26 @@ export class PointCloud {
   hideTraces(hidden) {
     this.tracesHidden = hidden;
     for (const node of this.loaded) node.mesh.geometry.setDrawRange(0, hidden ? node.cleanCount : node.keptCount);
+    this.onChange();
+  }
+
+  // For the administrator: the points of the people mask show in red instead of looking like the others.
+  markTraces(marked) {
+    this.tracesMarked = marked;
+    this.onChange();
+  }
+
+  // The people mask has changed around here: sort again the nodes already loaded.
+  sortTraces([lowX, lowY, lowZ, highX, highY, highZ]) {
+    const box = new THREE.Box3(new THREE.Vector3(lowX, lowY, lowZ), new THREE.Vector3(highX, highY, highZ));
+    for (const node of this.loaded) {
+      if (!node.box.intersectsBox(box)) continue;
+      const { position, tone } = node.mesh.geometry.attributes;
+      node.cleanCount = moveTracesLast(position.array, tone.array, node.keptCount, node, this.abbey.peopleMask);
+      position.needsUpdate = true;
+      tone.needsUpdate = true;
+      if (this.tracesHidden) node.mesh.geometry.setDrawRange(0, node.cleanCount);
+    }
     this.onChange();
   }
 
@@ -567,6 +635,7 @@ export class PointCloud {
     mesh.visible = false;
     mesh.onBeforeRender = (_renderer, _scene, _camera, _geometry, material) => {
       material.uniforms.uSpacing.value = node.drawSpacing ?? node.spacing;
+      material.uniforms.uMarkFrom.value = this.tracesMarked ? node.cleanCount : NOTHING_MARKED;
       material.uniformsNeedUpdate = true;
     };
     this.group.add(mesh);
