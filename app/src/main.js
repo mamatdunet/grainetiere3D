@@ -828,7 +828,7 @@ function showTourButton() {
 
 // On a phone, the screen is left to the view: the menu stays behind a button in the bottom right corner, and
 // below it only the tour's progress, or outside the tour the choice of place (see buildUi).
-const phone = matchMedia('(max-width: 640px)');
+const phone = matchMedia('(max-width: 640px), (pointer: coarse) and (max-height: 500px)');
 const bar = document.getElementById('bar');
 const dock = document.getElementById('dock');
 const menuToggle = document.getElementById('menu-toggle');
@@ -837,7 +837,23 @@ function showMenu(open) {
   bar.classList.toggle('open', open);
   menuToggle.setAttribute('aria-expanded', String(open));
   menuToggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+  fitMenu();
 }
+
+// All the height above the button that is really on screen, which is little on a phone turned on its side.
+// The browser's own bars can cover the top or the bottom of the page: only the visual viewport is visible.
+function fitMenu() {
+  if (!phone.matches) return;
+  const view = visualViewport;
+  const hiddenBelow = view ? Math.max(0, innerHeight - view.offsetTop - view.height) : 0;
+  dock.style.setProperty('--hidden-below', `${hiddenBelow}px`);
+  if (!bar.classList.contains('open')) return;
+  const visibleTop = view ? view.offsetTop : 0;
+  dock.style.setProperty('--menu-room', `${menuToggle.getBoundingClientRect().top - visibleTop - 24}px`);
+}
+visualViewport?.addEventListener('resize', fitMenu);
+visualViewport?.addEventListener('scroll', fitMenu);
+addEventListener('resize', fitMenu);
 
 function placeMenu() {
   const settings = document.querySelector('.settings');
