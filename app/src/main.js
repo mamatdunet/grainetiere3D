@@ -840,12 +840,15 @@ function showMenu(open) {
 }
 
 function placeMenu() {
+  const settings = document.querySelector('.settings');
   if (phone.matches) {
     dock.prepend(bar);
     dock.append(tourProgress);
+    document.getElementById('submenu').append(settings);
   } else {
     document.getElementById('place-title').after(bar);
     bar.append(tourProgress);
+    document.querySelector('.side').append(settings);
   }
   showMenu(false);
 }

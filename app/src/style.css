@@ -48,7 +48,7 @@ html, body {
   gap: 8px;
 }
 .dock { display: none; }
-.narrow { display: none; }
+.narrow, .submenu { display: none; }
 .bar-row {
   display: flex;
   flex-wrap: wrap;
@@ -479,6 +479,10 @@ kbd {
     display: none;
   }
   .bar.open { display: grid; }
+  .submenu { display: block; }
+  .submenu > summary { min-height: 44px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+  .submenu[open] > summary { margin-bottom: 8px; border-color: var(--accent); }
+  .submenu .settings { position: static; padding: 0; background: none; border: 0; }
   .bar-row { flex-direction: column; align-items: stretch; gap: 8px; }
   .bar-row > button { min-height: 44px; font-size: 14px; }
   #tour { order: -1; min-width: 0; }
