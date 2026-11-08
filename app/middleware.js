@@ -24,16 +24,17 @@ function page(status, message) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Abbaye de la Grainetière</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Marcellus&display=swap">
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
-    background: #0d0c0a; color: #f1ebdf; font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    background: #1d1a17; color: #f8f5ef; font: 16px/1.5 Lato, "Helvetica Neue", sans-serif; }
   form { width: 100%; max-width: 340px; display: grid; gap: 12px; }
-  h1 { margin: 0; font: 500 28px/1.2 Georgia, "Times New Roman", serif; }
-  label { display: grid; gap: 4px; color: #b5ac9c; }
-  input { min-height: 44px; padding: 8px; font: inherit; color: inherit; background: #1b1814;
-    border: 1px solid rgba(241, 235, 223, .3); border-radius: 6px; }
-  button { min-height: 44px; font: inherit; color: #17130c; background: #d9b779; border: 0; border-radius: 6px; cursor: pointer; }
+  h1 { margin: 0; font: 400 30px/1.15 Marcellus, Georgia, serif; }
+  label { display: grid; gap: 4px; color: #c9bda8; }
+  input { min-height: 44px; padding: 8px; font: inherit; color: inherit; background: #33302b;
+    border: 1px solid rgba(227, 218, 203, .3); border-radius: 2px; }
+  button { min-height: 44px; font: inherit; font-weight: 700; color: #1d1a17; background: #a68960; border: 0; border-radius: 2px; cursor: pointer; }
   p { margin: 0; color: #e8a38f; }
 </style></head>
 <body><form method="post">

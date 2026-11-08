@@ -103,11 +103,11 @@ class Panel {
     context.beginPath();
     context.roundRect(0, 0, width, height, 28);
     context.fill();
-    context.fillStyle = '#f1ebdf';
-    context.font = '500 52px Georgia, serif';
+    context.fillStyle = '#f8f5ef';
+    context.font = '400 52px Marcellus, Georgia, serif';
     context.fillText(title, 48, 88, width - 96);
-    context.fillStyle = '#d8d0c2';
-    context.font = '34px system-ui, sans-serif';
+    context.fillStyle = '#c9bda8';
+    context.font = '34px Lato, "Helvetica Neue", sans-serif';
     let y = 152;
     for (const line of lines) {
       let row = '';
