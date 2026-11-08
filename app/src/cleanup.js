@@ -22,9 +22,13 @@ const GUARD_REACH = 2;
 const GUARD_GAP = 2;
 const GUARD_SHARE = 0.35;
 const AIM_EVERY = 80;
-// A click takes the piece under the pointer. Moving further than this makes it a turn of the view instead.
+// A click takes the piece under the pointer, as far as its reach. Moving further than CLICK_SLOP makes it a turn
+// of the view instead. Within reach, specks that touch nothing go with it, however many pieces they make.
 const HOVER_RADIUS = 10;
 const CLICK_SLOP = 4;
+const REACH_STEP = 0.1;
+const SPECK_CELLS = 30;
+const LOOSE = 1, TOUCHING = 2;
 const NEAR = 0.05;
 const ERASE_COLOR = 0xff1a1a;
 const RESTORE_COLOR = 0x35d07f;
@@ -52,7 +56,7 @@ async function loadPieces() {
   const start = 4 + Math.ceil(size / 4) * 4;
   const cells = new Uint32Array(buffer, start, header.cells);
   const owner = new Uint32Array(buffer, start + header.cells * 4, header.cells);
-  const loose = new Uint8Array(buffer, start + header.cells * 8, header.pieces);
+  const flags = new Uint8Array(buffer, start + header.cells * 8, header.pieces);
   const solid = new Uint32Array(buffer, start + header.cells * 8 + Math.ceil(header.pieces / 4) * 4, header.solid);
   for (let i = 1; i < cells.length; i++) cells[i] += cells[i - 1];
   for (let i = 1; i < solid.length; i++) solid[i] += solid[i - 1];
@@ -63,9 +67,10 @@ async function loadPieces() {
   const filled = starts.slice();
   owner.forEach((piece, i) => { members[filled[piece]++] = cells[i]; });
   const looseList = [];
-  loose.forEach((flag, piece) => { if (flag) looseList.push(piece); });
+  flags.forEach((flag, piece) => { if (flag & LOOSE) looseList.push(piece); });
   return {
     loose: looseList,
+    isSpeck: (piece) => !(flags[piece] & TOUCHING) && starts[piece + 1] - starts[piece] <= SPECK_CELLS,
     isSolid: (cell) => indexIn(solid, cell) >= 0,
     pieceAt: (cell) => {
       const at = indexIn(cells, cell);
@@ -104,8 +109,9 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
       <button class="primary">Entrer</button>
     </form>
     <div id="cleanup-tools" class="cleanup-tools" hidden>
-      <p>Survoler : le morceau visé passe en rouge. Clic : il part en entier, sans toucher aux sols ni aux murs. Glisser : pivoter. Molette ou pincement : zoomer.</p>
+      <p>Survoler : ce que le clic prendra passe en rouge, le morceau visé et les miettes libres autour, jusqu'à la portée (cercle), sans toucher aux sols ni aux murs. Glisser : pivoter. Molette ou pincement : zoomer.</p>
       <p><kbd>Maj</kbd> + glisser : le pinceau, pour le reste. Il épargne le bâti et les fonds loin derrière un premier plan (tiret orange) ; <kbd>Alt</kbd> force le passage.</p>
+      <label><span>Portée du clic : <span id="cleanup-reach-value"></span> (touches <kbd>-</kbd> et <kbd>+</kbd>)</span> <input id="cleanup-reach" type="range" min="0.2" max="4" step="0.1" value="1.5" /></label>
       <div class="segmented" role="group" aria-label="Action du pinceau">
         <button id="cleanup-erase" aria-pressed="true">Gommer</button>
         <button id="cleanup-restore" aria-pressed="false">Dégommer</button>
@@ -140,6 +146,7 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
     find('erase').setAttribute('aria-pressed', String(erasing));
     find('restore').setAttribute('aria-pressed', String(!erasing));
     find('depth-value').textContent = `${Number(depthInput.value).toFixed(1).replace('.', ',')} m`;
+    find('reach-value').textContent = `${Number(find('reach').value).toFixed(1).replace('.', ',')} m`;
     ring.classList.toggle('restoring', !erasing);
     find('loose-value').textContent = find('loose').value;
     if (pieces) {
@@ -208,7 +215,8 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
   previewGeometry.setAttribute('position', new THREE.BufferAttribute(preview, 3));
   previewGeometry.setDrawRange(0, 0);
   const previewScene = new THREE.Scene();
-  const previewMaterial = new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, depthTest: false, transparent: true, opacity: 0.75 });
+  // Each cell as a square of its own size, as it would look in place.
+  const previewMaterial = new THREE.PointsMaterial({ size: voxel * 0.6, sizeAttenuation: true, depthTest: false, transparent: true, opacity: 0.5 });
   const previewPoints = new THREE.Points(previewGeometry, previewMaterial);
   previewPoints.frustumCulled = false;
   previewScene.add(previewPoints);
@@ -361,6 +369,7 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
       const cellZ = Math.floor((z - lowZ) / voxel);
       const cell = cellX + cellY * width + cellZ * width * depth;
       if (!spared(cell, stroke.erase, stroke.forced)) markCell(cell, stroke);
+      else stroke.spared = true;
     });
     previewGeometry.setDrawRange(0, Math.min(stroke.cells.length, MAX_PREVIEW));
     previewGeometry.attributes.position.needsUpdate = true;
@@ -387,11 +396,19 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
       return;
     }
     const cells = new Map();
+    let kept = 0;
     forEachTaken(aimed.found, aimed.depth, (x, y, z) => {
       const cellX = Math.floor((x - lowX) / voxel), cellY = Math.floor((y - lowY) / voxel), cellZ = Math.floor((z - lowZ) / voxel);
       const cell = cellX + cellY * width + cellZ * width * depth;
-      if (mask.cells.has(cell) !== erasing && !spared(cell, erasing, pointer.forced)) cells.set(cell, [lowX + (cellX + 0.5) * voxel, lowY + (cellY + 0.5) * voxel, lowZ + (cellZ + 0.5) * voxel]);
+      if (mask.cells.has(cell) === erasing) return;
+      if (spared(cell, erasing, pointer.forced)) kept += 1;
+      else cells.set(cell, [lowX + (cellX + 0.5) * voxel, lowY + (cellY + 0.5) * voxel, lowZ + (cellZ + 0.5) * voxel]);
     });
+    // Saying so when the building is spared: otherwise the brush just seems not to work.
+    if (kept) {
+      ring.classList.toggle('guarded', !cells.size);
+      ring.dataset.label = `${metres(aimed.depth)} · ${cells.size ? 'bâti épargné' : 'bâti protégé'}, Alt pour le gommer`;
+    }
     let at = 0;
     for (const position of cells.values()) {
       if (at === MAX_PREVIEW) break;
@@ -417,28 +434,74 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
     cloud.onChange();
   }
 
-  // The piece on the nearest surface under the pointer, or -1 when that surface is building.
-  function pieceUnder(clientX, clientY) {
+  const cellOf = (x, y, z) => Math.floor((x - lowX) / voxel) + Math.floor((y - lowY) / voxel) * width + Math.floor((z - lowZ) / voxel) * width * depth;
+  const steps = [];
+  for (let z = -1; z <= 1; z++) for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) if (x || y || z) steps.push([x, y, z]);
+
+  // What a click here would take: the part of the piece under the pointer within reach of the point aimed at,
+  // and the specks around that touch nothing. Null when nothing is under the pointer.
+  function selectionUnder(clientX, clientY) {
     const found = scan(clientX, clientY, HOVER_RADIUS, erasing);
     if (!found.length) return null;
     const depths = [];
     for (let i = 0; i < found.length; i += 6) depths.push(found[i]);
     const front = frontDepth(depths);
+    // A thin piece in front of a wall counts too few points to make the front surface: what lies before it counts.
     const votes = new Map();
-    let best = -1, most = 0;
+    let piece = -1, most = 0, anchor = -1;
     for (let i = 0; i < found.length; i += 6) {
-      if (Math.abs(found[i] - front) > LAYER_SPAN) continue;
-      const cell = Math.floor((found[i + 1] - lowX) / voxel) + Math.floor((found[i + 2] - lowY) / voxel) * width + Math.floor((found[i + 3] - lowZ) / voxel) * width * depth;
-      const piece = pieces.pieceAt(cell);
-      if (piece < 0) continue;
-      const count = (votes.get(piece) ?? 0) + 1;
-      votes.set(piece, count);
+      if (found[i] > front + LAYER_SPAN) continue;
+      if (anchor < 0 || found[i + 4] ** 2 + found[i + 5] ** 2 < found[anchor + 4] ** 2 + found[anchor + 5] ** 2) anchor = i;
+      const owner = pieces.pieceAt(cellOf(found[i + 1], found[i + 2], found[i + 3]));
+      if (owner < 0) continue;
+      const count = (votes.get(owner) ?? 0) + 1;
+      votes.set(owner, count);
       if (count > most) {
-        best = piece;
+        piece = owner;
         most = count;
       }
     }
-    return best;
+    const reach = Number(find('reach').value);
+    const [ax, ay, az] = found.slice(anchor + 1, anchor + 4);
+    const within = (cell) => {
+      const [x, y, z] = cellCenter(cell);
+      return (x - ax) ** 2 + (y - ay) ** 2 + (z - az) ** 2 <= reach * reach;
+    };
+    const taken = new Set();
+    if (piece >= 0) {
+      const queue = [];
+      for (let i = 0; i < found.length; i += 6) {
+        const cell = cellOf(found[i + 1], found[i + 2], found[i + 3]);
+        if (found[i] <= front + LAYER_SPAN && pieces.pieceAt(cell) === piece && !taken.has(cell)) {
+          taken.add(cell);
+          queue.push(cell);
+        }
+      }
+      while (queue.length) {
+        const cell = queue.pop();
+        for (const [x, y, z] of steps) {
+          const near = cell + x + y * width + z * width * depth;
+          if (taken.has(near) || pieces.pieceAt(near) !== piece || !within(near)) continue;
+          taken.add(near);
+          queue.push(near);
+        }
+      }
+    }
+    const span = Math.ceil(reach / voxel);
+    const [cx, cy, cz] = [Math.floor((ax - lowX) / voxel), Math.floor((ay - lowY) / voxel), Math.floor((az - lowZ) / voxel)];
+    const seen = new Set();
+    for (let z = -span; z <= span; z++) {
+      for (let y = -span; y <= span; y++) {
+        for (let x = -span; x <= span; x++) {
+          if ((x * x + y * y + z * z) * voxel * voxel > reach * reach) continue;
+          const owner = pieces.pieceAt(cx + x + (cy + y) * width + (cz + z) * width * depth);
+          if (owner < 0 || owner === piece || seen.has(owner)) continue;
+          seen.add(owner);
+          if (pieces.isSpeck(owner)) for (const cell of pieces.cellsOf(owner)) taken.add(cell);
+        }
+      }
+    }
+    return { cells: [...taken], piece, depth: found[anchor] };
   }
 
   // The nearest surface point under the pointer, for a shared link.
@@ -477,16 +540,14 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
   });
 
   // A piece goes with the empty cells around it, where the finer levels reach beyond the coarse points.
-  function takePieces(list, erase) {
+  function takeCells(cells, erase) {
     const done = { erase, cells: [], box: emptyBounds() };
-    const steps = [];
-    for (let z = -1; z <= 1; z++) for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) steps.push(x + y * width + z * width * depth);
-    for (const piece of list) {
-      for (const cell of pieces.cellsOf(piece)) {
-        for (const step of steps) {
-          const near = cell + step;
-          if (near === cell || !pieces.isSolid(near)) markCell(near, done);
-        }
+    const chosen = new Set(cells);
+    for (const cell of cells) {
+      markCell(cell, done);
+      for (const [x, y, z] of steps) {
+        const near = cell + x + y * width + z * width * depth;
+        if (!chosen.has(near) && !pieces.isSolid(near) && pieces.pieceAt(near) < 0) markCell(near, done);
       }
     }
     keepDone(done);
@@ -496,21 +557,35 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
     const now = performance.now();
     if (now - aimedAt < AIM_EVERY) return;
     aimedAt = now;
-    const piece = pieceUnder(pointer.x, pointer.y);
-    const diameter = HOVER_RADIUS * 2;
+    const chosen = selectionUnder(pointer.x, pointer.y);
+    // The circle shows the reach, as large as it looks at the depth aimed at.
+    const rect = canvas.getBoundingClientRect();
+    const pixelsPerMeter = rect.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    const diameter = chosen ? THREE.MathUtils.clamp((2 * Number(find('reach').value) * pixelsPerMeter) / chosen.depth, HOVER_RADIUS * 2, 4000) : HOVER_RADIUS * 2;
     ring.hidden = false;
     ring.style.width = ring.style.height = `${diameter}px`;
     ring.style.transform = `translate(${pointer.x - diameter / 2}px, ${pointer.y - diameter / 2}px)`;
-    ring.classList.toggle('guarded', piece === -1);
-    if (piece === null || piece === -1) {
-      ring.dataset.label = piece === -1 ? 'Bâti ou trop grand : pinceau' : '';
-      clearPreview();
-      return;
-    }
-    const cells = [...pieces.cellsOf(piece)].filter((cell) => mask.cells.has(cell) !== erasing);
-    ring.dataset.label = !cells.length ? 'Déjà retiré' : `${erasing ? 'Clic : retirer' : 'Clic : rendre'} (${pieces.cellsOf(piece).length} cases)`;
-    drawPreview(cells, erasing ? ERASE_COLOR : RESTORE_COLOR);
+    const cells = chosen ? chosen.cells.filter((cell) => mask.cells.has(cell) !== erasing) : [];
+    ring.classList.toggle('guarded', Boolean(chosen) && !chosen.cells.length);
+    if (!chosen) ring.dataset.label = '';
+    else if (!chosen.cells.length) ring.dataset.label = 'Bâti protégé : Maj + Alt + glisser pour le gommer';
+    else if (!cells.length) ring.dataset.label = erasing ? 'Déjà retiré' : 'Rien à rendre';
+    else ring.dataset.label = `${erasing ? 'Clic : retirer' : 'Clic : rendre'} ${cells.length.toLocaleString('fr-FR')} cases`;
+    if (cells.length) drawPreview(cells, erasing ? ERASE_COLOR : RESTORE_COLOR);
+    else clearPreview();
   }
+
+  const reachInput = find('reach');
+  reachInput.addEventListener('input', showState);
+  addEventListener('keydown', (event) => {
+    const change = { '+': 1, '=': 1, '-': -1, '_': -1 }[event.key];
+    if (!isAdmin || !change || event.ctrlKey || event.metaKey || event.target.closest?.('input')) return;
+    event.preventDefault();
+    reachInput.value = String(Number(reachInput.value) + change * REACH_STEP);
+    showState();
+    aimedAt = 0;
+    if (pointer && !stroke && pieces) showHover();
+  });
 
   const showRing = () => {
     if (!pointer) return;
@@ -562,7 +637,7 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
   });
   find('sweep').addEventListener('click', () => {
     clearPreview();
-    takePieces(loosePieces(), true);
+    takeCells(loosePieces().flatMap((piece) => [...pieces.cellsOf(piece)]), true);
   });
   find('undo').addEventListener('click', undo);
   find('redo').addEventListener('click', redo);
@@ -643,6 +718,8 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
       else if (!stroke && isAdmin && pieces) showHover();
       else if (!stroke) hideRing();
       if (!stroke) return false;
+      // Alt pressed during a stroke forces it from there on.
+      if (event.altKey && !stroke.forced && !stroke.blocked) stroke.forced = true;
       const step = Math.max(Number(sizeInput.value) / 2, 1);
       const distance = Math.hypot(event.clientX - last.x, event.clientY - last.y);
       if (distance < step) return true;
@@ -656,12 +733,13 @@ export function setupCleanup({ canvas, camera, renderer, cloud, look }) {
       if (pressed) {
         const { x, y, moved } = pressed;
         pressed = null;
-        const piece = moved ? -1 : pieceUnder(x, y);
-        if (piece !== null && piece >= 0) takePieces([piece], erasing);
+        const chosen = moved ? null : selectionUnder(x, y);
+        if (chosen?.cells.length) takeCells(chosen.cells, erasing);
         aimedAt = 0;
         return false;
       }
       if (!stroke) return false;
+      if (stroke.spared && !stroke.cells.length) status.textContent = 'Rien n\'est gommé : ce sont des cases de sol ou de mur, protégées. Maintenez Alt avec Maj pour les gommer quand même.';
       keepDone(stroke);
       stroke = null;
       previewGeometry.setDrawRange(0, 0);

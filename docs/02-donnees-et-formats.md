@@ -121,14 +121,14 @@ Une cellule porte le numéro `cx + cy × w + cz × w × d`, avec `c = floor((pos
 
 ### `pieces-mask.bin`
 
-Fichier de 3,8 Mo chargé seulement par l'outil de nettoyage (`?nettoyage=1`), sur la grille de `people-mask.bin`. Tout le fichier forme un seul flux gzip :
+Fichier de 4,8 Mo chargé seulement par l'outil de nettoyage (`?nettoyage=1`), sur la grille de `people-mask.bin`. Tout le fichier forme un seul flux gzip :
 
 | Ordre | Type | Contenu |
 | --- | --- | --- |
 | 1 | u32 + JSON complété à un multiple de 4 | En-tête `{ "voxel", "low", "shape", "pieces", "cells", "solid" }` |
 | 2 | u32 × `cells` | Cases des morceaux, triées, en écarts avec la précédente |
 | 3 | u32 × `cells` | Numéro du morceau de chaque case |
-| 4 | u8 × `pieces`, complété à un multiple de 4 | 1 si le morceau est isolé |
+| 4 | u8 × `pieces`, complété à un multiple de 4 | Drapeaux du morceau : 1 s'il est isolé, 2 s'il touche le bâti |
 | 5 | u32 × `solid` | Cases du bâti, triées, en écarts avec la précédente |
 
 ### `tour.json`

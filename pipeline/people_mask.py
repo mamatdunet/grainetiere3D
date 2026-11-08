@@ -70,6 +70,12 @@ def structure(occupied):
         layer = occupied[:, :, z] | occupied[:, :, z + 1]
         if layer.sum() >= 20:
             planes[:, :, z] = layer & (ndimage.uniform_filter(layer.astype(np.float32), PLANE_WIDTH, mode="constant") > PLANE_SHARE)
+    return planes, tall_runs(occupied)
+
+
+def tall_runs(occupied):
+    """Cells on an unbroken vertical run of at least WALL_RUN, small gaps closed."""
+    shape = occupied.shape
     closed = ndimage.binary_closing(occupied, structure=np.ones((1, 1, 3), bool))
     runs, up, down = np.zeros(shape, np.int16), np.zeros(shape[:2], np.int16), np.zeros(shape[:2], np.int16)
     for z in range(shape[2]):
@@ -78,7 +84,7 @@ def structure(occupied):
     for z in range(shape[2] - 1, -1, -1):
         down = (down + 1) * closed[:, :, z]
         runs[:, :, z] += down
-    return planes, runs >= WALL_RUN
+    return runs >= WALL_RUN
 
 
 def heights_over_floor(planes):

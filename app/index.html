@@ -13,13 +13,13 @@
     <div class="fade" id="fade"></div>
     <div class="place-title" id="place-title" role="status"><div id="place-name"></div><p id="place-role"></p></div>
 
-    <nav class="panel bar" aria-label="Navigation dans l'abbaye">
+    <nav class="panel bar" id="bar" aria-label="Navigation dans l'abbaye">
       <div class="bar-row">
         <div class="speed" role="group" aria-label="Vitesse de déplacement">
-          <span class="speed-title">Vitesse de défilement</span>
-          <button id="speed-down" aria-label="Ralentir" title="Ralentir (touche -)">−</button>
+          <span class="speed-title"><span class="wide">Vitesse de défilement</span><span class="narrow">Vitesse de visite</span></span>
+          <button id="speed-down" aria-label="Ralentir" title="Ralentir (touche -)"><span class="wide">−</span><svg class="narrow" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M11 6v12L2 12zM21 6v12l-9-6z" /></svg></button>
           <output id="speed-value" aria-live="off"></output>
-          <button id="speed-up" aria-label="Accélérer" title="Accélérer (touche +)">+</button>
+          <button id="speed-up" aria-label="Accélérer" title="Accélérer (touche +)"><span class="wide">+</span><svg class="narrow" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 6v12l9-6zM13 6v12l9-6z" /></svg></button>
         </div>
         <button id="tour" aria-pressed="false">▶ Lancer la visite guidée</button>
         <button id="story-toggle" class="story-toggle" aria-pressed="false" aria-controls="story">Afficher les explications</button>
@@ -29,6 +29,7 @@
             <path class="waves" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" />
             <path class="cross" d="M16 9.5l5 5M21 9.5l-5 5" />
           </svg>
+          <span class="narrow" aria-hidden="true">Musique</span>
         </button>
         <button id="music-open" class="icon" aria-label="Choisir la musique" title="Choisir la musique">♪</button>
         <button id="vr-open" title="Passer dans le casque de réalité virtuelle" hidden>Entrer dans le casque</button>
@@ -52,6 +53,12 @@
         <button id="tour-next" class="tour-jump"><span class="tour-jump-name" id="tour-next-name"></span><span aria-hidden="true">›</span></button>
       </div>
     </nav>
+    <!-- On a phone: the menu behind a button, and below it the tour's progress or the choice of place. -->
+    <div class="dock" id="dock">
+      <button id="menu-toggle" class="menu-toggle" aria-controls="bar" aria-expanded="false" aria-label="Ouvrir le menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      </button>
+    </div>
 
     <section class="panel story" id="story" aria-labelledby="story-title" hidden>
       <div class="story-head">
@@ -111,7 +118,7 @@
 
     <aside class="help" id="help">
       <p class="desktop"><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou flèches pour avancer, <kbd>A</kbd>/<kbd>E</kbd> pour monter et descendre, glisser pour regarder, <kbd>+</kbd>/<kbd>−</kbd> ou molette pour la vitesse, <kbd>Maj</kbd> pour accélérer.</p>
-      <p class="touch">Un doigt pour regarder, deux doigts pour avancer (pincer) et se déplacer (glisser). Boutons + et − pour la vitesse.</p>
+      <p class="touch">Un doigt pour regarder, deux doigts pour avancer (pincer) et se déplacer (glisser). Les boutons de vitesse règlent l’allure.</p>
     </aside>
 
     <dialog class="music-dialog" id="music-dialog" aria-labelledby="music-title">

@@ -19,6 +19,9 @@ const DETAIL_MAX = preloadWanted ? 16 : 40;
 const chosenDetail = isTouch ? 0
   : THREE.MathUtils.clamp(Number(options.get('detail')) || (preloadWanted ? DETAIL_MAX : 0), 0, DETAIL_MAX);
 const chosenPlaces = options.get('lieux')?.split(',');
+// The monks' rooms are a private space: they are left out unless the address is /admin.
+const isAdmin = location.pathname.replace(/\/+$/, '') === '/admin';
+const PRIVATE_ZONES = ['chambres', 'chambres_n1', 'chambres_n1_esc', 'chambres_n1_sdb'];
 
 const canvas = document.getElementById('view');
 const stats = document.getElementById('stats');
@@ -637,14 +640,13 @@ function setupSky() {
 
 function buildUi(abbey, startZone, overview) {
   const select = document.getElementById('zone');
-  // No map column on a phone: the menu goes back to the bar.
+  // No map column on a phone: the choice of place goes under the menu button.
   const gotoBox = document.getElementById('goto');
-  const narrow = matchMedia('(max-width: 640px)');
   const placeGoto = () => {
-    if (narrow.matches) document.querySelector('.bar').prepend(gotoBox);
+    if (phone.matches) document.getElementById('menu-toggle').after(gotoBox);
     else document.querySelector('.minimap').after(gotoBox);
   };
-  narrow.addEventListener('change', placeGoto);
+  phone.addEventListener('change', placeGoto);
   placeGoto();
   const list = document.getElementById('stations');
   const descend = () => { if (speed === OVERVIEW_SPEED) setSpeed(WALKING_SPEED); };
@@ -823,6 +825,35 @@ function showTourButton() {
   tourButton.setAttribute('aria-pressed', String(Boolean(tour) && !tour.held));
   tourButton.textContent = tour?.held ? '▶ Reprendre' : tour ? '⏸ Pause' : tourLeftAt ? '▶ Reprendre la visite' : '▶ Lancer la visite guidée';
 }
+
+// On a phone, the screen is left to the view: the menu stays behind a button in the bottom right corner, and
+// below it only the tour's progress, or outside the tour the choice of place (see buildUi).
+const phone = matchMedia('(max-width: 640px)');
+const bar = document.getElementById('bar');
+const dock = document.getElementById('dock');
+const menuToggle = document.getElementById('menu-toggle');
+
+function showMenu(open) {
+  bar.classList.toggle('open', open);
+  menuToggle.setAttribute('aria-expanded', String(open));
+  menuToggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+}
+
+function placeMenu() {
+  if (phone.matches) {
+    dock.prepend(bar);
+    dock.append(tourProgress);
+  } else {
+    document.getElementById('place-title').after(bar);
+    bar.append(tourProgress);
+  }
+  showMenu(false);
+}
+
+menuToggle.addEventListener('click', () => showMenu(!bar.classList.contains('open')));
+canvas.addEventListener('pointerdown', () => { if (phone.matches) showMenu(false); });
+phone.addEventListener('change', placeMenu);
+placeMenu();
 
 function forgetTour() {
   tourLeftAt = null;
@@ -2000,6 +2031,7 @@ function enterHeadset() {
 
 async function start() {
   const abbey = await loadAbbey(baseUrl);
+  if (!isAdmin) abbey.zones = abbey.zones.filter((zone) => !PRIVATE_ZONES.includes(zone.id));
   cloud = new PointCloud(abbey, baseUrl, {
     pointBudget: chosenDetail ? chosenDetail * 1e6 : isTouch ? TOUCH_BUDGET.start : 16_000_000,
     onChange: () => { dirty = true; },

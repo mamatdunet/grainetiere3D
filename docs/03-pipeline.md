@@ -260,7 +260,14 @@ La grille du fichier couvre tous les points, pour qu'un point lointain ne puisse
 python pipeline/pieces_mask.py cache app/src/people-mask.bin app/src/pieces-mask.bin app/src/air-mask.bin app/src/speck-mask.bin
 ```
 
-Le script reprend la séparation du bâti de `people_mask.py`, garde tous les morceaux jusqu'à 3 000 cases (`MAX_CELLS`) et note ceux qui n'ont rien autour d'eux (`LOOSE_REACH`). Il lit la grille dans `people-mask.bin` pour que les numéros de cases restent les mêmes. Le fichier ne sert que sur `?nettoyage=1` : un clic retire un morceau entier, un curseur retire d'un coup les morceaux isolés, et le pinceau ne touche plus au bâti sans `Alt`.
+Le script reprend la séparation du bâti de `people_mask.py`, avec deux retouches :
+
+- **Murs rugueux.** La pierre irrégulière passe d'une colonne de cases à l'autre et cassait les longues verticales. Les murs sont donc aussi cherchés sur une grille élargie d'une case de côté, sans jamais prendre les cases du masque des silhouettes. Seules les étendues d'au moins 300 cases comptent (`ROUGH_CELLS`) : les meubles d'une chambre font eux aussi de longues verticales sur cette grille.
+- **Échos.** Un court morceau de mur suspendu en l'air, loin de tout sol ou voûte (moins de 2 000 cases, `ECHO_CELLS`), redevient un morceau.
+
+Le script garde ensuite tous les morceaux, note ceux qui touchent le bâti et ceux qui n'ont rien autour d'eux (`LOOSE_REACH`). Il lit la grille dans `people-mask.bin` pour que les numéros de cases restent les mêmes.
+
+Le fichier ne sert que sur `?nettoyage=1`. Un clic prend la partie du morceau visé à portée du pointeur (réglable, 1,5 m par défaut), et les miettes de 30 cases au plus qui ne touchent rien dans la même boule. Un curseur retire d'un coup les morceaux isolés, et le pinceau ne touche plus au bâti sans `Alt`.
 
 ## Ordre de reconstruction
 

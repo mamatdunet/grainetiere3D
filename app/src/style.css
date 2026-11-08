@@ -47,6 +47,8 @@ html, body {
   display: grid;
   gap: 8px;
 }
+.dock { display: none; }
+.narrow { display: none; }
 .bar-row {
   display: flex;
   flex-wrap: wrap;
@@ -442,16 +444,58 @@ kbd {
 }
 
 @media (max-width: 640px) {
-  .bar { right: 16px; padding: 8px; }
-  .bar-row { flex-wrap: wrap; }
-  .bar .goto { position: static; padding: 0; background: none; border: 0; }
-  #tour { flex: 1 1 140px; min-width: 0; }
-  .story-toggle { flex: 1; min-width: 0; }
-  .tour-jump { flex: none; width: 36px; }
+  .wide { display: none; }
+  .narrow { display: inline; }
+  svg.narrow { display: block; }
+  /* The menu button, then the tour's progress or the choice of place; the menu opens above them. */
+  .dock {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .dock > * { pointer-events: auto; }
+  .menu-toggle { width: 48px; min-height: 48px; padding: 0; display: grid; place-items: center; background: var(--panel); }
+  .menu-toggle[aria-expanded="true"] { border-color: var(--accent); }
+  .dock .goto, .dock .tour-progress { align-self: stretch; position: static; padding: 8px; }
+  .dock .tour-progress { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .dock .tour-progress[hidden] { display: none; }
+  .dock:has(.tour-progress:not([hidden])) .goto { display: none; }
+  .goto select { min-height: 40px; font-size: 14px; }
+  .bar {
+    position: static;
+    width: min(300px, 100%);
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    touch-action: pan-y;
+    padding: 12px;
+    background: #1a1713;
+    display: none;
+  }
+  .bar.open { display: grid; }
+  .bar-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .bar-row > button { min-height: 44px; font-size: 14px; }
+  #tour { order: -1; min-width: 0; }
+  .story-toggle { min-width: 0; white-space: normal; }
+  #mute { width: auto; display: flex; justify-content: center; gap: 8px; }
+  #mute[aria-pressed="true"] { background: transparent; }
+  #music-open { display: none; }
+  .guide-open { order: 1; }
+  .speed { grid-template-columns: 1fr 1fr; grid-template-areas: "title title" "down up" "value value"; gap: 6px; }
+  .speed-title { grid-area: title; margin: 0; }
+  #speed-down { grid-area: down; }
+  #speed-up { grid-area: up; }
+  #speed-down, #speed-up { min-height: 44px; display: grid; place-items: center; }
+  #speed-value { grid-area: value; font-size: 12px; color: var(--muted); }
+  .stations-row { flex-direction: column; align-items: stretch; }
+  .tour-jump { flex: none; width: 40px; min-height: 40px; }
   .tour-jump-name { display: none; }
-  #speed-value { display: none; }
-  .speed { grid-template-columns: 40px 40px; }
-  .speed-title { display: none; }
   .side { display: none; }
   #place-role { font-size: 14px; }
   .place-title { font-size: 25px; top: 12px; right: 16px; max-width: calc(100vw - 32px); }
