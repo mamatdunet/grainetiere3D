@@ -2,7 +2,7 @@
 
 Visite web de l'abbaye Notre-Dame de la Grainetière (Vendée), à partir de son relevé au scanner laser : une visite guidée de 22 minutes ou une déambulation libre dans 2 milliards de points, depuis un simple navigateur.
 
-- **En ligne :** <https://grainetiere3d.vercel.app>, derrière un mot de passe.
+- **En ligne :** <https://grainetiere3d.vercel.app>, en accès libre et non indexé par les moteurs de recherche. Seule `/admin`, qui ajoute les chambres des moines, demande un mot de passe.
 - **Source :** 643 stations de scan, 389 Gio de fichiers E57, 19,2 milliards de points, sans couleur.
 - **Publié :** 28 zones, 2,0 milliards de points, 11,4 Go compressés sur Vercel Blob.
 
@@ -18,7 +18,7 @@ flowchart LR
   E --> F[Navigateur du visiteur]
 ```
 
-Les données lourdes ne passent jamais par le serveur du site : le navigateur lit directement, dans le Blob, les morceaux d'octree dont la vue a besoin. Le site lui-même pèse 27 Mo, dont 26 Mo de musique.
+Les données lourdes ne passent jamais par le serveur du site : le navigateur lit directement, dans le Blob, les morceaux d'octree dont la vue a besoin. Seules les chambres passent par le serveur, pour `/admin` uniquement. Le site lui-même pèse 21 Mo, dont 20 Mo de musique.
 
 ## Contenu du dépôt
 
@@ -54,6 +54,8 @@ Par défaut, le serveur de développement lit les points du Blob public. Aucun s
 5. [Exploitation](docs/05-exploitation.md) : déployer, modifier un texte, retirer une zone, changer le mot de passe
 6. [Limites, droits et chantiers](docs/06-limites-et-droits.md) : ce qui n'est pas vérifié, pas réglé ou pas fini
 
-## À lire avant de partager
+## Licence et crédits
 
-Les droits ne sont pas réglés sur trois contenus : les scans (AGP), les textes de Philippe Gaury et la musique. Les fichiers de points sont lisibles par quiconque possède leur adresse, que ce dépôt contient. Voir [Limites et droits](docs/06-limites-et-droits.md) avant de rendre ce dépôt public. Aucune licence n'est accordée pour l'instant.
+Le code et la documentation sont sous licence [CC BY-NC 4.0](LICENSE.md). Cette licence **ne couvre pas les nuages de points**, fournis et réalisés par Art Graphique & Patrimoine, dont la réutilisation n'est pas autorisée, ni les textes de Philippe Gaury. La musique est de Kevin MacLeod ([incompetech.com](https://incompetech.com)), sous licence CC BY 4.0. Le détail est dans [LICENSE.md](LICENSE.md) et dans la fenêtre « Crédits » du site.
+
+Contact : <matthieuchatry@gmail.com>

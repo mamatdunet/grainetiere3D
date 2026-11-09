@@ -1,14 +1,10 @@
-// The tracks are served with the site, so they stay behind the password page.
-const AMBIENT_LEVEL = 1;
-const TRACK_LEVEL = 0.4; // the ambient track is mastered about 10 dB below the others
+// Kevin MacLeod (incompetech.com), CC BY 4.0: credited in the credits dialog. All four are levelled to -20 LUFS.
+const LEVEL = 0.6;
 const TRACKS = [
-  { name: 'Morceau 1', url: new URL('./music/track-01.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Morceau 2', url: new URL('./music/track-02.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Morceau 3', url: new URL('./music/track-03.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Morceau 4', url: new URL('./music/track-04.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Morceau 5', url: new URL('./music/track-05.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Morceau 6', url: new URL('./music/track-06.mp3', import.meta.url).href, level: TRACK_LEVEL },
-  { name: 'Ambiance', url: new URL('./music/ambient.mp3', import.meta.url).href, level: AMBIENT_LEVEL },
+  { name: 'Meditation Impromptu 01', url: new URL('./music/track-01.mp3', import.meta.url).href, level: LEVEL },
+  { name: 'Clean Soul', url: new URL('./music/track-02.mp3', import.meta.url).href, level: LEVEL },
+  { name: 'Meditation Impromptu 03', url: new URL('./music/track-03.mp3', import.meta.url).href, level: LEVEL },
+  { name: 'Bittersweet', url: new URL('./music/track-04.mp3', import.meta.url).href, level: LEVEL },
 ];
 
 function shuffled(items) {

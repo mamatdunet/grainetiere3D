@@ -284,7 +284,7 @@ Le lieu courant est celui du point de parcours le plus proche, ou de la station 
 
 ### Musique : `music.js`
 
-Lecture dans un ordre aléatoire, à la suite. Le volume passe par un `GainNode` car iOS ignore `audio.volume`. La musique se coupe quand l'onglet est masqué et reprend ensuite. L'ambiance, enregistrée 10 dB plus bas, a un gain de 1 contre 0,4 pour les autres morceaux.
+Lecture dans un ordre aléatoire, à la suite. Le volume passe par un `GainNode` car iOS ignore `audio.volume`. La musique se coupe quand l'onglet est masqué et reprend ensuite. Les quatre morceaux ont le même volume perçu et donc le même gain, 0,6.
 
 ## Paramètres d'adresse
 

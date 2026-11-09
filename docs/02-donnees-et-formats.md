@@ -183,7 +183,7 @@ v = −x sin(axis) + y cos(axis)
 
 ### `music/`
 
-Six morceaux et une ambiance en MP3 (26 Mo). Ils sont servis par le site, public depuis le 9 novembre 2026.
+Quatre morceaux de Kevin MacLeod ([incompetech.com](https://incompetech.com)), sous licence CC BY 4.0, en MP3 à 160 kbit/s (20 Mo) : « Meditation Impromptu 01 », « Clean Soul », « Meditation Impromptu 03 » et « Bittersweet ». Ils ont été ramenés au même volume perçu (-20 LUFS). La licence impose de les créditer : c'est fait dans la fenêtre « Crédits » du site. Ils remplacent, depuis le 9 novembre 2026, une musique dont les droits n'étaient pas réglés.
 
 ## Dans le dépôt : `data/inventory/`
 

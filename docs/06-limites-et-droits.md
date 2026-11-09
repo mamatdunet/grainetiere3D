@@ -29,23 +29,22 @@ Rien de ceci n'est un avis juridique. Ce sont des points à régler par les pers
 
 | Contenu | Situation | Dans ce dépôt ? |
 | --- | --- | --- |
-| Relevés laser (AGP) | Droits non clarifiés | Non pour les points. Leur adresse publique, oui |
-| Textes de Philippe Gaury (`places.json`) | Accord de l'auteur non vérifié | **Oui** |
-| Musique (`app/src/music/`) | Droits non réglés | **Oui** |
-| Pièces privées : chambres, salles de bain | Choix de les garder dans le visualiseur. Certains scans montrent une personne | Non pour les points |
-| Code | Aucune licence accordée pour l'instant | Oui |
+| Relevés laser (AGP) | Fournis et réalisés par Art Graphique & Patrimoine, crédités sur le site. Exclus de la licence du dépôt : réutilisation interdite | Non pour les points. Leur adresse publique, oui |
+| Textes de Philippe Gaury (`places.json`) | Crédités sur le site. Accord de l'auteur non vérifié | **Oui** |
+| Musique (`app/src/music/`) | Kevin MacLeod, CC BY 4.0, créditée sur le site depuis le 9 novembre 2026. L'ancienne musique, sans droits, reste dans l'historique Git | **Oui** |
+| Pièces privées : chambres, salles de bain | Magasin Blob privé, servies à `/admin` seulement. Certains scans montrent une personne | Non |
+| Code et documentation | CC BY-NC 4.0 ([LICENSE.md](../LICENSE.md)) | Oui |
 
 **Avant de rendre ce dépôt public :**
 
-1. obtenir ou retirer les textes et la musique ;
-2. retirer du code l'adresse du Blob, ou accepter qu'elle donne accès à tous les points (`DEFAULT_DATA` dans `main.js`, `BASE_URL` dans `coarse_points.py`, et cette documentation) ;
-3. mesurer ce que l'historique Git expose : retirer un fichier d'un commit récent ne l'efface pas des précédents ;
-4. choisir une licence.
+1. obtenir l'accord de Philippe Gaury pour ses textes, ou les retirer ;
+2. accepter que l'adresse du Blob public donne accès aux points de la visite (`DEFAULT_DATA` dans `main.js`, `BASE_URL` dans `coarse_points.py`, et cette documentation). Les chambres n'y sont plus ;
+3. repartir d'un historique Git neuf : les commits antérieurs au 9 novembre 2026 contiennent l'ancienne musique, dont les droits ne sont pas réglés.
 
 ## Limites de sécurité
 
-- La visite est publique depuis le 9 novembre 2026. Le mot de passe ne protège que `/admin`, la vue qui montre les chambres des moines.
-- Il ne protège pas les fichiers de points : ceux des chambres restent lisibles par qui connaît leur adresse, et le manifeste public les liste.
+- La visite est publique depuis le 9 novembre 2026, mais non indexée (`noindex`). Le mot de passe ne protège que `/admin`, la vue qui montre les chambres des moines.
+- Les fichiers des chambres sont dans un magasin Blob privé et ne passent que par `api/prive.js`, avec le cookie de `/admin`. Les autres fichiers de points restent lisibles par qui connaît leur adresse.
 - Le code d'accès n'a pas de limite de tentatives.
 - Le mot de passe est transmis en clair dans le POST, protégé par HTTPS, et comparé à sa valeur en mémoire.
 - Le cookie reste valable tant que le mot de passe ne change pas : on ne peut pas révoquer un seul visiteur.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Write the manifest of converted zones. Zones missing from LABELS are never published."""
+"""Write the manifest of converted zones. Zones missing from LABELS are never published.
+The monks' rooms go to a second manifest, next to the first with -prive in its name, for the private store."""
 import json
 import sys
 
@@ -16,5 +17,8 @@ LABELS = {
     "chambres": "Chambres", "chambres_n1": "Chambres, étage",
     "chambres_n1_esc": "Chambres, escalier", "chambres_n1_sdb": "Chambres, salles de bain",
 }
+PRIVATE = {"chambres", "chambres_n1", "chambres_n1_esc", "chambres_n1_sdb"}
 zones = [{"id": z, "label": LABELS[z]} for z in sys.argv[2:]]
-json.dump({"grid": 128, "rootSize": 512.0, "zones": zones}, open(sys.argv[1], "w"), ensure_ascii=False)
+for path, chosen in ((sys.argv[1], [z for z in zones if z["id"] not in PRIVATE]),
+                     (sys.argv[1].replace(".json", "-prive.json"), [z for z in zones if z["id"] in PRIVATE])):
+    json.dump({"grid": 128, "rootSize": 512.0, "zones": chosen}, open(path, "w"), ensure_ascii=False)

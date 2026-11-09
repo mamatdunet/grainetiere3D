@@ -37,6 +37,7 @@
         <button id="music-open" class="icon" aria-label="Choisir la musique" title="Choisir la musique">♪</button>
         <button id="vr-open" title="Passer dans le casque de réalité virtuelle" hidden>Entrer dans le casque</button>
         <button id="guide-open" class="guide-open">? Aide</button>
+        <button id="credits-open">Crédits</button>
       </div>
       <!-- On a phone, the display settings of the side column come in here (see placeMenu). -->
       <details class="submenu" id="submenu"><summary>Lumière et réglages</summary></details>
@@ -139,6 +140,25 @@
       <button id="music-close">Fermer</button>
     </dialog>
 
+    <dialog class="music-dialog credits-dialog" id="credits-dialog" aria-labelledby="credits-title">
+      <h2 id="credits-title">Crédits</h2>
+      <dl>
+        <dt>Relevé laser et nuage de points</dt>
+        <dd>Fournis et réalisés par Art Graphique &amp; Patrimoine.</dd>
+        <dt>Textes des lieux</dt>
+        <dd>Philippe Gaury.</dd>
+        <dt>Musique</dt>
+        <dd>Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>) : «&nbsp;Meditation Impromptu 01&nbsp;», «&nbsp;Meditation Impromptu 03&nbsp;», «&nbsp;Clean Soul&nbsp;» et «&nbsp;Bittersweet&nbsp;», sous licence <a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener">CC BY 4.0</a>.</dd>
+        <dt>Rendu 3D</dt>
+        <dd><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a>, licence MIT.</dd>
+        <dt>Licence</dt>
+        <dd>Le site et son code sont sous licence <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.fr" target="_blank" rel="noopener">CC BY-NC 4.0</a>. Cette licence ne couvre pas les nuages de points, qui restent la propriété d'Art Graphique &amp; Patrimoine : leur réutilisation n'est pas autorisée. Les textes restent la propriété de leur auteur.</dd>
+        <dt>Contact</dt>
+        <dd><a href="mailto:matthieuchatry@gmail.com">matthieuchatry@gmail.com</a></dd>
+      </dl>
+      <button id="credits-close">Fermer</button>
+    </dialog>
+
     <div class="welcome" id="welcome">
       <div class="card" role="dialog" aria-labelledby="welcome-title">
         <h2 id="welcome-title">Bienvenue à l'abbaye de la Grainetière</h2>
@@ -152,6 +172,7 @@
           </div>
           <button id="enter-guided" class="primary choice"><strong>▶ Visite guidée</strong><span id="guided-note"></span></button>
           <button id="enter-free" class="choice"><strong>Visite libre</strong><span>Vous vous déplacez à votre rythme, où vous voulez.</span></button>
+          <button id="welcome-credits" class="credits-link">Crédits et contact</button>
         </div>
         <div class="welcome-step" id="step-music" hidden>
           <p>Souhaitez-vous l'accompagnement musical ? Il se coupe ou se change à tout moment.</p>

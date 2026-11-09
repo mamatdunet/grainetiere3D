@@ -141,7 +141,7 @@ L'accès au Drive a été révoqué et le remote `rclone` supprimé après la co
 python publish_manifest.py manifest.json buanderie cuisine …
 ```
 
-Il écrit la liste des zones nommées en ligne de commande avec leur libellé français (`LABELS`). Une zone absente de `LABELS` fait échouer le script : rien n'est publié par accident. L'envoi sur le Blob se fait ensuite à part :
+Il écrit la liste des zones nommées en ligne de commande avec leur libellé français (`LABELS`). Une zone absente de `LABELS` fait échouer le script : rien n'est publié par accident. Les chambres (`PRIVATE`) partent dans un second fichier, `manifest-prive.json`, destiné au magasin privé : `vercel blob put manifest-prive.json --pathname abbaye/manifest.json --access private --rw-token …` avec `PRIVE_READ_WRITE_TOKEN`. Leurs fichiers ne sont plus lisibles par `coarse_points.py`, qui lit le Blob public : pour régénérer un masque qui les couvre, il faudrait les lire par ce jeton. L'envoi du manifeste public se fait ensuite à part :
 
 ```bash
 curl -sS -X PUT --upload-file manifest.json -H "@blob_headers.txt" \

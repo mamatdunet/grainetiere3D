@@ -19,9 +19,10 @@ const DETAIL_MAX = preloadWanted ? 16 : 40;
 const chosenDetail = isTouch ? 0
   : THREE.MathUtils.clamp(Number(options.get('detail')) || (preloadWanted ? DETAIL_MAX : 0), 0, DETAIL_MAX);
 const chosenPlaces = options.get('lieux')?.split(',');
-// The monks' rooms are a private space: they are left out unless the address is /admin.
+// The monks' rooms are a private space: only /admin loads them, from the private store behind api/prive.js
+// (addresses come out as /api/prive?path=/chambres/…).
 const isAdmin = location.pathname.replace(/\/+$/, '') === '/admin';
-const PRIVATE_ZONES = ['chambres', 'chambres_n1', 'chambres_n1_esc', 'chambres_n1_sdb'];
+const PRIVATE_DATA = '/api/prive?path=';
 
 const canvas = document.getElementById('view');
 const stats = document.getElementById('stats');
@@ -1823,6 +1824,13 @@ function frame(now) {
   }
 }
 
+function setupCredits() {
+  const credits = document.getElementById('credits-dialog');
+  for (const id of ['credits-open', 'welcome-credits']) document.getElementById(id).addEventListener('click', () => credits.showModal());
+  document.getElementById('credits-close').addEventListener('click', () => credits.close());
+  credits.addEventListener('click', (event) => { if (event.target === credits) credits.close(); });
+}
+
 let music;
 let ready;
 function setupMusic() {
@@ -2061,8 +2069,7 @@ function enterHeadset() {
 }
 
 async function start() {
-  const abbey = await loadAbbey(baseUrl);
-  if (!isAdmin) abbey.zones = abbey.zones.filter((zone) => !PRIVATE_ZONES.includes(zone.id));
+  const abbey = await loadAbbey(baseUrl, isAdmin ? PRIVATE_DATA : null);
   cloud = new PointCloud(abbey, baseUrl, {
     pointBudget: chosenDetail ? chosenDetail * 1e6 : isTouch ? TOUCH_BUDGET.start : 16_000_000,
     onChange: () => { dirty = true; },
@@ -2119,6 +2126,7 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 }
 setSpeed(speed);
 setupMusic();
+setupCredits();
 setupStory();
 setupMap();
 setupSky();

@@ -11,19 +11,28 @@ export async function gunzipIfNeeded(buffer) {
   return new Response(stream).arrayBuffer();
 }
 
-async function fetchZone(baseUrl, zone) {
-  const response = await fetch(`${baseUrl}/${zone.id}/metadata.json.gz`);
+// Each zone keeps the address it came from: the public store, or the private one behind /api/prive.
+async function fetchZone(zone) {
+  const response = await fetch(`${zone.base}/${zone.id}/metadata.json.gz`);
   if (!response.ok) throw new Error(`${zone.id}: HTTP ${response.status}`);
   const text = new TextDecoder().decode(await gunzipIfNeeded(await response.arrayBuffer()));
   return { ...zone, ...JSON.parse(text) };
 }
 
-export async function loadAbbey(baseUrl) {
-  const response = await fetch(`${baseUrl}/manifest.json`, { cache: 'no-cache' });
+async function fetchManifest(base) {
+  const response = await fetch(`${base}/manifest.json`, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`manifest: HTTP ${response.status}`);
   const manifest = await response.json();
+  for (const zone of manifest.zones) zone.base = base;
+  return manifest;
+}
+
+// privateUrl, for /admin only, adds the monks' rooms, which are not in the public manifest.
+export async function loadAbbey(baseUrl, privateUrl) {
+  const manifest = await fetchManifest(baseUrl);
+  if (privateUrl) manifest.zones.push(...(await fetchManifest(privateUrl)).zones);
   const [zones, cleaning, peopleMask, ...masks] = await Promise.all([
-    Promise.all(manifest.zones.map((zone) => fetchZone(baseUrl, zone))),
+    Promise.all(manifest.zones.map(fetchZone)),
     loadCleaning(baseUrl),
     loadMask(peopleMaskUrl),
     loadMask(airMaskUrl),
@@ -356,7 +365,7 @@ export class PointCloud {
       }
       const min = new THREE.Vector3(x, y, z);
       const node = {
-        zone: zone.id, key, count, chunk, offset, length, size,
+        zone: zone.id, base: zone.base, key, count, chunk, offset, length, size,
         spacing: size / this.abbey.grid,
         box: new THREE.Box3(min, min.clone().addScalar(size)),
         center: min.clone().addScalar(size / 2),
@@ -450,12 +459,12 @@ export class PointCloud {
   }
 
   nodeUrl(node) {
-    return `${this.baseUrl}/${node.zone}/chunks/${node.chunk}.bin`;
+    return `${node.base}/${node.zone}/chunks/${node.chunk}.bin`;
   }
 
   // Where a node's bytes are kept on disk: not a real address, only a key.
   storeKey(node) {
-    return `${this.baseUrl}/${node.zone}/nodes/${node.key || 'root'}`;
+    return `${node.base}/${node.zone}/nodes/${node.key || 'root'}`;
   }
 
   async fetchNode(node) {
