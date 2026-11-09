@@ -1890,6 +1890,8 @@ function setupMusic() {
   document.getElementById('enter-free').addEventListener('click', () => choose(false));
   const enter = (withMusic) => {
     welcome.hidden = true;
+    // Kept back until now: on a phone it would sit half under the welcome card.
+    document.getElementById('help').hidden = guided;
     if (withMusic) music.play();
     canvas.focus();
     onEnter();
