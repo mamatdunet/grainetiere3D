@@ -63,6 +63,7 @@
       <button id="menu-toggle" class="menu-toggle" aria-controls="bar" aria-expanded="false" aria-label="Ouvrir le menu">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
+      <button id="tour-resume" class="tour-resume" hidden>▶ Reprendre la visite</button>
     </div>
 
     <section class="panel story" id="story" aria-labelledby="story-title" hidden>
@@ -124,6 +125,11 @@
     <aside class="help" id="help">
       <p class="desktop"><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou flèches pour avancer, <kbd>A</kbd>/<kbd>E</kbd> pour monter et descendre, glisser pour regarder, <kbd>+</kbd>/<kbd>−</kbd> ou molette pour la vitesse, <kbd>Maj</kbd> pour accélérer.</p>
       <p class="touch">Un doigt pour regarder, deux doigts pour avancer (pincer) et se déplacer (glisser). Les boutons de vitesse règlent l’allure.</p>
+    </aside>
+
+    <aside class="tour-hint" id="tour-hint" hidden>
+      <p class="desktop">Vous pouvez quitter le parcours à tout moment&nbsp;: glissez dans l’image ou utilisez les flèches pour explorer librement chaque scène.</p>
+      <p class="touch">Touchez l’écran à tout moment pour explorer librement chaque scène&nbsp;: la visite vous attendra.</p>
     </aside>
 
     <dialog class="music-dialog" id="music-dialog" aria-labelledby="music-title">

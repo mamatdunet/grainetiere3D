@@ -21,16 +21,16 @@ function shuffled(items) {
 }
 
 export class Music {
-  constructor(onChange) {
+  constructor(onChange, { single = false } = {}) {
     this.onChange = onChange;
     this.volume = 0.6;
     this.playing = false;
-    this.order = shuffled(TRACKS);
+    this.order = single ? TRACKS.slice(0, 1) : shuffled(TRACKS);
     this.position = 0;
   }
 
   get tracks() {
-    return TRACKS;
+    return this.order.length === 1 ? this.order : TRACKS;
   }
 
   get current() {
@@ -42,6 +42,7 @@ export class Music {
     if (this.audio) return;
     this.audio = new Audio();
     this.audio.preload = 'auto';
+    this.audio.loop = this.order.length === 1;
     this.audio.addEventListener('ended', () => this.next());
     const Context = window.AudioContext || window.webkitAudioContext;
     this.ctx = new Context();

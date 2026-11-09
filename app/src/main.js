@@ -821,9 +821,15 @@ function tourStops() {
 // Where a stopped tour would pick up again, to the very instant.
 let tourLeftAt = null;
 
+// On a phone the menu is folded away: leaving the tour brings out a button to come back to it.
+const tourResume = document.getElementById('tour-resume');
+const tourHint = document.getElementById('tour-hint');
+let tourHintSeen = false;
+
 function showTourButton() {
   tourButton.setAttribute('aria-pressed', String(Boolean(tour) && !tour.held));
   tourButton.textContent = tour?.held ? '▶ Reprendre' : tour ? '⏸ Pause' : tourLeftAt ? '▶ Reprendre la visite' : '▶ Lancer la visite guidée';
+  tourResume.hidden = Boolean(tour) || !tourLeftAt;
 }
 
 // On a phone, the screen is left to the view: the menu stays behind a button in the bottom right corner, and
@@ -908,11 +914,14 @@ function startTour() {
   buildTourTicks();
   document.getElementById('stations-row').hidden = true;
   tourProgress.hidden = false;
+  tourHint.hidden = tourHintSeen;
   showTourProgress();
 }
 
 function stopTour() {
   if (!tour) return;
+  tourHintSeen = true;
+  tourHint.hidden = true;
   const index = tour.target ?? tour.index;
   if (index >= 0) {
     tourLeftAt = {
@@ -1831,7 +1840,8 @@ function setupMusic() {
       button.setAttribute('aria-pressed', String(music.playing && button.track === music.current));
     }
   };
-  music = new Music(show);
+  // On a phone or a tablet, a single track: the others would only weigh on the visit.
+  music = new Music(show, { single: isTouch });
   list.replaceChildren(...music.tracks.map((track) => {
     const button = document.createElement('button');
     button.textContent = track.name;
@@ -2113,6 +2123,7 @@ setupSky();
 setupSeek();
 setupGuide();
 tourButton.addEventListener('click', toggleTour);
+tourResume.addEventListener('click', toggleTour);
 document.getElementById('tour-previous').addEventListener('click', () => jumpTour(-1));
 document.getElementById('tour-next').addEventListener('click', () => jumpTour(1));
 resize();

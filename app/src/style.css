@@ -416,7 +416,27 @@ button[aria-pressed="true"] {
 }
 .help[hidden] { display: none; }
 .help p { margin: 0; }
-.help .touch { display: none; }
+.help .touch, .tour-hint .touch { display: none; }
+/* Shown at the start of the tour, until the visitor first takes the controls. */
+.tour-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 120px;
+  width: min(440px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  text-align: center;
+  font: 400 17px/1.35 var(--display);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  pointer-events: none;
+  animation: hint-in 0.8s ease both;
+}
+.tour-hint[hidden] { display: none; }
+.tour-hint p { margin: 0; }
+@keyframes hint-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 kbd {
   display: inline-block;
   min-width: 18px;
@@ -442,7 +462,8 @@ kbd {
 
 @media (pointer: coarse) {
   .help .desktop { display: none; }
-  .help .touch { display: block; }
+  .help .touch, .tour-hint .touch { display: block; }
+  .tour-hint .desktop { display: none; }
 }
 
 @media (max-height: 640px) {
@@ -478,6 +499,8 @@ kbd {
   .dock .tour-progress { background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
   .dock .tour-progress[hidden] { display: none; }
   .dock:has(.tour-progress:not([hidden])) .goto { display: none; }
+  .tour-resume { align-self: stretch; min-height: 48px; font-size: 15px; color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+  .tour-resume[hidden], .bar.open ~ .tour-resume { display: none; }
   .goto select { min-height: 40px; font-size: 14px; }
   .bar {
     position: static;
@@ -517,6 +540,7 @@ kbd {
   .story-open .place-title:not(.centered) { display: none; }
   .story { top: 8px; left: 8px; max-width: calc(100vw - 16px); max-height: 48vh; }
   .help { bottom: 176px; margin-right: 16px; }
+  .tour-hint { bottom: calc(150px + env(safe-area-inset-bottom)); font-size: 16px; }
 }
 
 /* Hand cleaning (?nettoyage=1) */
